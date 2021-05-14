@@ -7,7 +7,7 @@
     <groupId>geniusweb.sampleagent</groupId>
     <!-- TODO Update below if you change your project name!! -->
     <artifactId>MyAgent</artifactId>
-    <version>1.4.3</version>
+    <version>1.6.0</version>
     <packaging>jar</packaging>
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
@@ -30,17 +30,17 @@
         <dependency>
             <groupId>geniusweb</groupId>
             <artifactId>party</artifactId>
-            <version>1.4.3</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>geniusweb</groupId>
             <artifactId>bidspace</artifactId>
-            <version>1.4.3</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>geniusweb</groupId>
             <artifactId>profileconnection</artifactId>
-            <version>1.4.3</version>
+            <version>1.6.0</version>
         </dependency>
         <dependency>
             <groupId>tudelft.utilities</groupId>

@@ -8,7 +8,12 @@ import geniusweb.bidspace.AllPartialBidsList;
 import geniusweb.issuevalue.Bid;
 import geniusweb.party.Capabilities;
 import geniusweb.party.DefaultParty;
-import geniusweb.party.inform.*;
+import geniusweb.inform.ActionDone;
+import geniusweb.inform.Agreements;
+import geniusweb.inform.Finished;
+import geniusweb.inform.Inform;
+import geniusweb.inform.Settings;
+import geniusweb.inform.YourTurn;
 import geniusweb.profile.Profile;
 import geniusweb.profile.utilityspace.UtilitySpace;
 import geniusweb.profileconnection.ProfileConnectionFactory;
@@ -20,6 +25,7 @@ import tudelft.utilities.logging.Reporter;
 import java.io.IOException;
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Random;
 import java.util.logging.Level;
@@ -71,6 +77,9 @@ public class MyAgent extends DefaultParty {
                     lastReceivedBid = ((Offer) otheract).getBid();
                 }
             } else if (info instanceof YourTurn) {
+                if (progress instanceof ProgressRounds) {
+                    progress = ((ProgressRounds) progress).advance();
+                }
                 myTurn();
             } else if (info instanceof Finished) {
                 getReporter().log(Level.INFO, "Final outcome:" + info);
@@ -78,14 +87,11 @@ public class MyAgent extends DefaultParty {
         } catch (Exception e) {
             throw new RuntimeException("Failed to handle info", e);
         }
-        if (progress instanceof ProgressRounds) {
-            progress = ((ProgressRounds) progress).advance();
-        }
     }
 
     @Override
     public Capabilities getCapabilities() {
-        return new Capabilities(new HashSet<>(Arrays.asList("SAOP")));
+        return new Capabilities(new HashSet<>(Arrays.asList("SAOP", "Learn")), Collections.singleton(Profile.class));
     }
 
     @Override
