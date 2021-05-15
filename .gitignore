@@ -15,3 +15,5 @@ apache-tomcat-8.5.65/
 partiesserver-1.6.0.war
 profilesserver-1.6.0.war
 runserver-1.6.0.war
+
+*.DS_Store
