@@ -1,4 +1,5 @@
 package geniusweb.sampleagent;
+package geniusweb.sampleagent;
 
 import geniusweb.actions.Accept;
 import geniusweb.actions.Action;
@@ -60,6 +61,12 @@ public class MyAgent extends DefaultParty {
     // Minimum utility value of a bid that the agent offers or accepts.
     private double acceptableUtilityValue = 1.0;
 
+	private HashMap<String, Value[]> issueList = new HashMap<>();
+    private HashMap<String, Double> issueWeights = new HashMap<>();
+    private ArrayList<Object[]> issueValueList = new ArrayList<>();
+
+    private static final int kValue = 3;
+    //private static double maxValue = 0;
 
     public MyAgent() {
     }
@@ -121,6 +128,38 @@ public class MyAgent extends DefaultParty {
             this.bidsUtilityMap.put(bid, ((UtilitySpace) this.profile).getUtility(bid));
         }
         this.bidsUtilityMap = sortBidsByUtility(this.bidsUtilityMap);
+		
+		for (int i = 0; i < this.domain.getIssues().size(); i++) {
+            Value[] valueList = new Value[this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue()];
+            for (int j = 0; j < this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue(); j++) {
+                valueList[j] = this.domain.getValues((String) this.domain.getIssues().toArray()[i]).get(j);
+            }
+            this.issueList.put(this.domain.getIssues().toArray()[i].toString(), valueList);
+        }
+
+        double initialIssueWeight = (double) 1 / this.domain.getIssues().toArray().length;
+        for (int i = 0; i < this.domain.getIssues().toArray().length; i++) {
+            issueWeights.put(this.domain.getIssues().toArray()[i].toString(), initialIssueWeight);
+        }
+
+        Object[] issueValue = new Object[3];
+
+        for (int i = 0; i < this.domain.getIssues().size(); i++) {
+            for (int j = 0; j < this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue(); j++) {
+                issueValue = new Object[]{this.domain.getIssues().toArray()[i].toString(),
+                        this.domain.getValues((String) this.domain.getIssues().toArray()[i]).get(j),
+                        (double) 1 / this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue()};
+                this.issueValueList.add(issueValue);
+            }
+        }
+
+        Random rand = new Random();
+
+        for (int i = 0; i < this.allBidsList.size().intValue() - 5; i++) {
+            int random = rand.nextInt(this.allBidsList.size().intValue() - 3);
+            this.receivedOffers.add(this.allBidsList.get(random));
+        }
+		
     }
 
     // Sorting the bidsUtilityMap according to their utility value (ascending order)
@@ -149,6 +188,8 @@ public class MyAgent extends DefaultParty {
         if(lastReceivedBid != null) {
             this.receivedOffers.add(this.lastReceivedBid);
             getReporter().log(Level.INFO, "Received Bid:" + lastReceivedBid.toString());
+			opponentPreferenceProfile(lastReceivedBid);
+            valueEstimation(lastReceivedBid);
         }
 
         Bid nextBid = createBid();
@@ -258,4 +299,70 @@ public class MyAgent extends DefaultParty {
         acceptableUtilityValue = bidUtil - compromise;
         }
     }
+	
+	private List<Bid> opponentPreferenceProfile(Bid offer) {
+        
+        Bid[] previousWindow = new Bid[kValue];
+        Bid[] currentWindow = new Bid[kValue];
+
+        if (this.receivedOffers.size() / kValue > 1 && this.receivedOffers.size() % kValue == 0) {
+            for (int i = 0; i < 3; i++) {
+                previousWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / 3) - 2) * 3 + i);
+                currentWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / 3) - 1) * 3 + i);
+            }
+        }
+
+        Set<String> e = new HashSet<>();
+        boolean concession = false;
+
+        Double[] previousWeigths = new Double[this.issueWeights.size()];
+        for (int i = 0; i < this.issueWeights.size(); i++) {
+            previousWeigths[i] = this.issueWeights.get(this.domain.getIssues().toArray()[i].toString());
+        }
+        List<Bid> preferenceProfile = new ArrayList<>();
+        return preferenceProfile;
+    }
+
+    private double Fr(Value value, Bid[] window) {
+        int valueCount = 0;
+        int deltaValue = 0;
+        for (int i = 0; i < kValue; i++) {
+            if (window[i].getIssueValues().containsValue(value)) {
+                valueCount++;
+            }
+        }
+        return 1;
+    }
+
+    private void valueEstimation(Bid lastReceivedBid) {
+        
+        for(int i = 0; i < this.receivedOffers.size(); i++){
+            System.out.println(i);
+            System.out.println(this.receivedOffers.get(i));
+        }
+
+        for (int i = 0; i < this.issueValueList.size(); i++) {
+            System.out.println("Value " + this.issueValueList.get(i)[1] + " appears " +
+                    numeratorCalc((String) this.issueValueList.get(i)[0], (Value) this.issueValueList.get(i)[1]) + " times");
+        }
+        
+    }
+
+
+    private int ifValueAppears(String issue, Value value, Bid bid) {
+        return bid.getValue(issue).equals(value) ? 1 : 0;
+    }
+
+    private double numeratorCalc(String issue, Value value){
+        int count = 0;
+        double exp = 0.4;
+
+        for(int i = 0; i < this.receivedOffers.size(); i++){
+            if(ifValueAppears(issue, value, this.receivedOffers.get(i)) == 1)
+                count++;
+        }
+
+        return Math.pow((count + 1), exp);
+    }
+	
 }
