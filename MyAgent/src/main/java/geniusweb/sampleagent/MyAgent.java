@@ -1,5 +1,4 @@
 package geniusweb.sampleagent;
-package geniusweb.sampleagent;
 
 import geniusweb.actions.Accept;
 import geniusweb.actions.Action;
@@ -24,6 +23,7 @@ import geniusweb.progress.Progress;
 import geniusweb.progress.ProgressRounds;
 import tudelft.utilities.logging.Reporter;
 
+import javax.rmi.CORBA.Util;
 import javax.websocket.DeploymentException;
 import java.io.IOException;
 import java.math.BigDecimal;
@@ -60,6 +60,7 @@ public class MyAgent extends DefaultParty {
     private final Random random = new Random();
     // Minimum utility value of a bid that the agent offers or accepts.
     private double acceptableUtilityValue = 1.0;
+    private double reservationUtilityValue = 1;
 
 	private HashMap<String, Value[]> issueList = new HashMap<>();
     private HashMap<String, Double> issueWeights = new HashMap<>();
@@ -126,6 +127,9 @@ public class MyAgent extends DefaultParty {
         this.allBidsList = new AllBidsList(domain);
         for(Bid bid:this.allBidsList){
             this.bidsUtilityMap.put(bid, ((UtilitySpace) this.profile).getUtility(bid));
+            double util = ((UtilitySpace) profile).getUtility(bid).doubleValue();
+            if (util < reservationUtilityValue)
+                reservationUtilityValue = util;
         }
         this.bidsUtilityMap = sortBidsByUtility(this.bidsUtilityMap);
 		
@@ -199,6 +203,9 @@ public class MyAgent extends DefaultParty {
         if (isAcceptable(lastReceivedBid)) {
             // Action of acceptance
             action = new Accept(partyId, lastReceivedBid);
+            System.out.println("Accepted " + lastReceivedBid.toString() +
+                    " with u " + ((UtilitySpace) profile).getUtility(lastReceivedBid) +
+                    " in #rounds " + ((ProgressRounds) this.progress).getCurrentRound());
             getReporter().log(Level.INFO, "<MyAgent>: I accept the offer.");
         } else {
             action = makeAnOffer(nextBid);
@@ -273,19 +280,22 @@ public class MyAgent extends DefaultParty {
 
     private void updateAcceptable(Bid nextBid) {
         double compromise = 0;
-        double resUtil = ((UtilitySpace) profile).getUtility(profile.getReservationBid()).doubleValue();
+//        System.out.println("Res" + ((UtilitySpace) profile).getReservationBid().toString());
+//        System.out.println("Util" + ((UtilitySpace) profile).getUtility(nextBid).toString());
+//        double resUtil = ((UtilitySpace) profile).getUtility(((UtilitySpace) profile).getReservationBid()).doubleValue();
         double bidUtil = ((UtilitySpace) profile).getUtility(nextBid).doubleValue();
-        double diff = bidUtil - resUtil;
+        double diff = bidUtil - this.reservationUtilityValue;
         if (diff < 0) { // just to be safe
-            acceptableUtilityValue = resUtil;
+            acceptableUtilityValue = this.reservationUtilityValue;
             return;
         }
 
         if (progress instanceof ProgressRounds) {
             int total = ((ProgressRounds) progress).getTotalRounds();
             int current = ((ProgressRounds) progress).getCurrentRound();
-            compromise = diff * current / total;
-
+//            compromise = diff * current / total; // eq 1
+            compromise = diff * current * current / total / total; // eq 2
+        }
 //        } else if (progress instanceof ProgressTime) {
 //            long total = ((ProgressTime) progress).getDuration();
 ////            long current = System.currentTimeMillis() - ((ProgressTime) progress).getStart().getTime();
@@ -297,7 +307,6 @@ public class MyAgent extends DefaultParty {
 //        }
 
         acceptableUtilityValue = bidUtil - compromise;
-        }
     }
 	
 	private List<Bid> opponentPreferenceProfile(Bid offer) {
@@ -336,15 +345,15 @@ public class MyAgent extends DefaultParty {
 
     private void valueEstimation(Bid lastReceivedBid) {
         
-        for(int i = 0; i < this.receivedOffers.size(); i++){
-            System.out.println(i);
-            System.out.println(this.receivedOffers.get(i));
-        }
+//        for(int i = 0; i < this.receivedOffers.size(); i++){
+//            System.out.println(i);
+//            System.out.println(this.receivedOffers.get(i));
+//        }
 
-        for (int i = 0; i < this.issueValueList.size(); i++) {
-            System.out.println("Value " + this.issueValueList.get(i)[1] + " appears " +
-                    numeratorCalc((String) this.issueValueList.get(i)[0], (Value) this.issueValueList.get(i)[1]) + " times");
-        }
+//        for (int i = 0; i < this.issueValueList.size(); i++) {
+//            System.out.println("Value " + this.issueValueList.get(i)[1] + " appears " +
+//                    numeratorCalc((String) this.issueValueList.get(i)[0], (Value) this.issueValueList.get(i)[1]) + " times");
+//        }
         
     }
 
