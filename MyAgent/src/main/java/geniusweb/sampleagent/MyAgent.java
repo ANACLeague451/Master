@@ -69,6 +69,9 @@ public class MyAgent extends DefaultParty {
     private static final int kValue = 3;
     //private static double maxValue = 0;
 
+    private Learner learner;
+    private ArrayList<Offer> learnerInfo = new ArrayList<>();
+
     public MyAgent() {
     }
 
@@ -87,6 +90,7 @@ public class MyAgent extends DefaultParty {
                 Action action = ((ActionDone) info).getAction();
                 if (action instanceof Offer) {
                     this.lastReceivedBid = ((Offer) action).getBid();
+                    this.learnerInfo.add((Offer) action);
                 }
             } else if (info instanceof YourTurn) {
                 if (progress instanceof ProgressRounds) {
@@ -95,6 +99,9 @@ public class MyAgent extends DefaultParty {
                 myTurn();
             } else if (info instanceof Finished) {
                 getReporter().log(Level.INFO, "Final outcome:" + info);
+                this.learner.appendInfo(learnerInfo);
+                for (int i = 0; i < learnerInfo.size(); ++i)
+                    learnerInfo.remove(learnerInfo.get(i));
             }
         } catch (Exception e) {
             throw new RuntimeException("Failed to handle info", e);
@@ -163,7 +170,8 @@ public class MyAgent extends DefaultParty {
             int random = rand.nextInt(this.allBidsList.size().intValue() - 3);
             this.receivedOffers.add(this.allBidsList.get(random));
         }
-		
+		this.learner = new Learner();
+        this.learner.reporter = this.reporter;
     }
 
     // Sorting the bidsUtilityMap according to their utility value (ascending order)
@@ -184,7 +192,8 @@ public class MyAgent extends DefaultParty {
         getReporter().log(Level.INFO, "<MyAgent>: It's my turn!");
         // Increasing the round count
         this.time = progress.get(System.currentTimeMillis());
-        this.acceptableUtilityValue = 0.7 + (1 - this.time) * 0.3;
+//        this.acceptableUtilityValue = 0.7 + (1 - this.time) * 0.3;
+        this.acceptableUtilityValue = 0.9;
         getReporter().log(Level.INFO, "Time:" + this.time);
         getReporter().log(Level.INFO, "Acceptable Utility Value:" + this.acceptableUtilityValue);
 
@@ -279,34 +288,20 @@ public class MyAgent extends DefaultParty {
     }
 
     private void updateAcceptable(Bid nextBid) {
-        double compromise = 0;
-//        System.out.println("Res" + ((UtilitySpace) profile).getReservationBid().toString());
-//        System.out.println("Util" + ((UtilitySpace) profile).getUtility(nextBid).toString());
-//        double resUtil = ((UtilitySpace) profile).getUtility(((UtilitySpace) profile).getReservationBid()).doubleValue();
+        double upper = 0.9, lower = 0.7;
         double bidUtil = ((UtilitySpace) profile).getUtility(nextBid).doubleValue();
-        double diff = bidUtil - this.reservationUtilityValue;
-        if (diff < 0) { // just to be safe
-            acceptableUtilityValue = this.reservationUtilityValue;
-            return;
+        if (bidUtil >= upper) {
+            this.acceptableUtilityValue = upper;
+        } else if (bidUtil <= lower) {
+            this.acceptableUtilityValue = lower;
+        } else {
+            int total = 1, current = 0;
+            if (progress instanceof ProgressRounds) {
+                total = ((ProgressRounds) progress).getTotalRounds();
+                current = ((ProgressRounds) progress).getCurrentRound();
+            }
+            this.acceptableUtilityValue = bidUtil - (bidUtil - lower) * current / total;
         }
-
-        if (progress instanceof ProgressRounds) {
-            int total = ((ProgressRounds) progress).getTotalRounds();
-            int current = ((ProgressRounds) progress).getCurrentRound();
-//            compromise = diff * current / total; // eq 1
-            compromise = diff * current * current / total / total; // eq 2
-        }
-//        } else if (progress instanceof ProgressTime) {
-//            long total = ((ProgressTime) progress).getDuration();
-////            long current = System.currentTimeMillis() - ((ProgressTime) progress).getStart().getTime();
-////            compromise = diff * current / total;
-//            System.out.println("Total " + total);
-////            System.out.println("Current " + current);
-//            System.out.println("Diff " + diff);
-////            System.out.println("Compromise " + compromise);
-//        }
-
-        acceptableUtilityValue = bidUtil - compromise;
     }
 	
 	private List<Bid> opponentPreferenceProfile(Bid offer) {
