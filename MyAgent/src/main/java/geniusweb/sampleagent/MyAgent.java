@@ -60,6 +60,13 @@ public class MyAgent extends DefaultParty {
     // Minimum utility value of a bid that the agent offers or accepts.
     private double acceptableUtilityValue = 1.0;
 
+    private HashMap<String, Value[]> issueList = new HashMap<>();
+    private HashMap<String, Double> issueWeights = new HashMap<>();
+    private ArrayList<Object[]> issueValueList = new ArrayList<>();
+
+    private List<Bid> opponentBids = null;
+
+    private static final int kValue = 3;
 
     public MyAgent() {
     }
@@ -121,13 +128,44 @@ public class MyAgent extends DefaultParty {
             this.bidsUtilityMap.put(bid, ((UtilitySpace) this.profile).getUtility(bid));
         }
         this.bidsUtilityMap = sortBidsByUtility(this.bidsUtilityMap);
+
+        for (int i = 0; i < this.domain.getIssues().size(); i++) {
+            Value[] valueList = new Value[this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue()];
+            for (int j = 0; j < this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue(); j++) {
+                valueList[j] = this.domain.getValues((String) this.domain.getIssues().toArray()[i]).get(j);
+            }
+            this.issueList.put(this.domain.getIssues().toArray()[i].toString(), valueList);
+        }
+
+        double initialIssueWeight = (double) 1 / this.domain.getIssues().toArray().length;
+        for (int i = 0; i < this.domain.getIssues().toArray().length; i++) {
+            issueWeights.put(this.domain.getIssues().toArray()[i].toString(), initialIssueWeight);
+        }
+
+        Object[] issueValue = new Object[3];
+
+        for (int i = 0; i < this.domain.getIssues().size(); i++) {
+            for (int j = 0; j < this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue(); j++) {
+                issueValue = new Object[]{this.domain.getIssues().toArray()[i].toString(),
+                        this.domain.getValues((String) this.domain.getIssues().toArray()[i]).get(j),
+                        (double) 1 / this.domain.getValues((String) this.domain.getIssues().toArray()[i]).size().intValue()};
+                this.issueValueList.add(issueValue);
+            }
+        }
+
+        Random rand = new Random();
+
+        for (int i = 0; i < this.allBidsList.size().intValue() - 5; i++) {
+            int random = rand.nextInt(this.allBidsList.size().intValue() - 3);
+            this.receivedOffers.add(this.allBidsList.get(random));
+        }
     }
 
     // Sorting the bidsUtilityMap according to their utility value (ascending order)
     private LinkedHashMap<Bid, BigDecimal> sortBidsByUtility(HashMap<Bid, BigDecimal> utilityMap)
     {
         List<Map.Entry<Bid, BigDecimal>> list = new LinkedList<>(utilityMap.entrySet());
-        Collections.sort(list, Comparator.comparing(Map.Entry::getValue));
+        Collections.sort(list, Collections.reverseOrder(Comparator.comparing(Map.Entry::getValue)));
         LinkedHashMap<Bid, BigDecimal> sortedHashMap = new LinkedHashMap<>();
         for (Map.Entry<Bid, BigDecimal> tuple : list) {
             sortedHashMap.put(tuple.getKey(), tuple.getValue());
@@ -174,53 +212,39 @@ public class MyAgent extends DefaultParty {
     }
 
     private Bid createBid() {
-        Bid offeredBid;
-        // Getting the list of the issues defined in the domain of the session
-        Set<String> issuesList = this.domain.getIssues();
-        List<Bid> acceptableBids = new ArrayList();
-        for(Bid bid: this.allBidsList){
-            double bidUtility = ((UtilitySpace) this.profile).getUtility(bid).doubleValue();
-            if (bidUtility >= this.acceptableUtilityValue){
-                acceptableBids.add(bid);
-            }
-        }
-        // If there is no bid having utility value >= acceptableUtilityValue
-        if(acceptableBids.size() == 0){
-            Object[] utilitySortedBidList = this.bidsUtilityMap.keySet().toArray();
-            // Getting the bid having highest utility value
-            Bid maxUtilityBid = (Bid) utilitySortedBidList[utilitySortedBidList.length-1];
-            acceptableBids.add(maxUtilityBid);
-        }
-        // Shuffle the bids in order not to select the same bid to offer in each round
-        Collections.shuffle(acceptableBids);
-        Bid selectedBid = acceptableBids.get(0);
+        Bid offeredBid = (Bid) this.bidsUtilityMap.keySet().toArray()[0];
+        int totalRounds = 0;
+        int currentRound = 0;
 
-        // First round
-        if(this.receivedOffers.size() == 0){
-            offeredBid = selectedBid;
+        if(progress instanceof ProgressRounds){
+            totalRounds = ((ProgressRounds) progress).getTotalRounds();
+            currentRound = ((ProgressRounds) progress).getCurrentRound();
         }
+
+        if(currentRound == 1 && lastReceivedBid == null)
+            return offeredBid;
+
+        else if(currentRound <= 6)
+            offeredBid = (Bid) this.bidsUtilityMap.keySet().toArray()[currentRound];
+
         else {
-            // Hash map of the selected bid
-            HashMap<String, Value> createdBid = new HashMap<>();
-            // Copying issue value of the selected bid to the hashmap
-            for (String issue : issuesList) {
-                Value issueValue = selectedBid.getValue(issue);
-                createdBid.put(issue, issueValue);
-            }
-
-            // From the offered bids (by opponent) history, a bid selected randomly
-            int selectedOfferedBidIndex = this.random.nextInt(this.receivedOffers.size());
-            Bid selectedOfferedBid = this.receivedOffers.get(selectedOfferedBidIndex);
-
-            // From the issues defined in the domain, an issue selected randomly
-            int selectedIssueIndex = this.random.nextInt(issuesList.size());
-            String selectedIssue = (String) issuesList.toArray()[selectedIssueIndex];
-
-            // Value of the selected issue in the created bid is replaced with the value of the selected offered bid
-            createdBid.put(selectedIssue, selectedOfferedBid.getValue(selectedIssue));
-            //The bid is created according to the hash map
-            offeredBid = new Bid(createdBid);
+            List<Bid> paretos = getParetoPoints((List<Bid>)this.bidsUtilityMap.keySet());
+            Bid nashPoint = calculateNashPoint((List<Bid>)this.bidsUtilityMap.keySet(), paretos);
+            offeredBid = nashPoint;
         }
+        /*else {
+            maxAcceptableValue = maxAcceptableValue - 0.02;
+            minAcceptableValue = 3 * maxAcceptableValue / 4;
+            getReporter().log(Level.INFO, "Min Accep: " + minAcceptableValue);
+            getReporter().log(Level.INFO, "Max Accep: " + maxAcceptableValue);
+            double averageAcceptatableValue = (maxAcceptableValue + minAcceptableValue) / 2;
+            for(int i=0; i<bidsUtilityMap.size(); i++){
+                BigDecimal bd = (BigDecimal)bidsUtilityMap.values().toArray()[i];
+                double a = bd.doubleValue();
+                if(a < averageAcceptatableValue && i != 0)
+                    offeredBid = (Bid) this.bidsUtilityMap.keySet().toArray()[i-1];
+            }
+        }*/
         return offeredBid;
     }
 
@@ -231,31 +255,199 @@ public class MyAgent extends DefaultParty {
     }
 
     private void updateAcceptable(Bid nextBid) {
-        double compromise = 0;
-        double resUtil = ((UtilitySpace) profile).getUtility(profile.getReservationBid()).doubleValue();
+        double upper = 0.9, lower = 0.7;
         double bidUtil = ((UtilitySpace) profile).getUtility(nextBid).doubleValue();
-        double diff = bidUtil - resUtil;
-        if (diff < 0) { // just to be safe
-            acceptableUtilityValue = resUtil;
-            return;
+        if (bidUtil >= upper) {
+            this.acceptableUtilityValue = upper;
+        } else if (bidUtil <= lower) {
+            this.acceptableUtilityValue = lower;
+        } else {
+            int total = 1, current = 0;
+            if (progress instanceof ProgressRounds) {
+                total = ((ProgressRounds) progress).getTotalRounds();
+                current = ((ProgressRounds) progress).getCurrentRound();
+            }
+            this.acceptableUtilityValue = bidUtil - (bidUtil - lower) * current / total;
+        }
+    }
+
+    private Bid calculateNashPoint(List<Bid> points, List<Bid> paretos){
+        Bid nashPoint = null;
+        double maximumUtility = 0.0;
+        // List<Bid> paretos = getParetoPoints(this.) ..
+
+        // placeholder before opponent modeling
+        List<Double> opponentUtilities = null;
+        for (Bid p : points)
+            opponentUtilities.add(0.5);
+
+        for (int i = 0; i < points.size(); ++i) {
+            if (!paretos.contains(points.get(i)))
+                continue; // not nash for sure
+            double prd = ((BigDecimal)bidsUtilityMap.values().toArray()[i]).doubleValue() * opponentUtilities.get(i);
+            if(prd > maximumUtility){
+                nashPoint = points.get(i);
+                maximumUtility = prd;
+            }
+        }
+        return nashPoint;
+    }
+
+    private List<Bid> getParetoPoints(List<Bid> points){
+        List<Bid> paretoPoints = null;
+        List<Bid> dominatedList = null;
+        paretoPoints.add(points.get(0));
+        boolean pareto = false;
+
+        // placeholder before opponent modeling
+        List<Double> opponentUtilities = null;
+        for (Bid p : points)
+            opponentUtilities.add(0.5);
+
+        for(int i=1; i<points.size(); i++){
+            double ourCurrentBidValue = ((BigDecimal)bidsUtilityMap.values().toArray()[i]).doubleValue();
+            double opponentCurrentBidValue = opponentUtilities.get(i);
+            for (int j = 0; j < i; ++j) {
+                if (!paretoPoints.contains(points.get(j)))
+                    continue;
+                double ourPreviousBidValue = ((BigDecimal)bidsUtilityMap.values().toArray()[j]).doubleValue();
+                double opponentPreviousBidValue = opponentUtilities.get(j);
+                if (ourCurrentBidValue <= ourPreviousBidValue && opponentCurrentBidValue <= opponentPreviousBidValue)
+                    break; // dominated
+                if (ourCurrentBidValue >= ourPreviousBidValue || opponentCurrentBidValue >= opponentPreviousBidValue){
+                    pareto = true;
+                    if (ourCurrentBidValue >= ourPreviousBidValue && opponentCurrentBidValue >= opponentPreviousBidValue) {
+                        dominatedList.add(points.get(j));
+                    }
+                }
+            }
+            if (pareto) {
+                paretoPoints.add(points.get(i));
+                for (Bid dominated : dominatedList)
+                    paretoPoints.remove(dominated); // remove previously added but dominated paretos
+            }
+            pareto = false;
+            dominatedList = null;
         }
 
-        if (progress instanceof ProgressRounds) {
-            int total = ((ProgressRounds) progress).getTotalRounds();
-            int current = ((ProgressRounds) progress).getCurrentRound();
-            compromise = diff * current / total;
+        return paretoPoints;
+    }
 
-//        } else if (progress instanceof ProgressTime) {
-//            long total = ((ProgressTime) progress).getDuration();
-////            long current = System.currentTimeMillis() - ((ProgressTime) progress).getStart().getTime();
-////            compromise = diff * current / total;
-//            System.out.println("Total " + total);
-////            System.out.println("Current " + current);
-//            System.out.println("Diff " + diff);
-////            System.out.println("Compromise " + compromise);
-//        }
+    private List<Bid> opponentPreferenceProfile(Bid offer) {
 
-        acceptableUtilityValue = bidUtil - compromise;
+        //valueEstimation();
+
+        Bid[] previousWindow = new Bid[kValue];
+        Bid[] currentWindow = new Bid[kValue];
+
+        if (this.receivedOffers.size() / kValue > 1 && this.receivedOffers.size() % kValue == 0) {
+            for (int i = 0; i < 3; i++) {
+                previousWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / 3) - 2) * 3 + i);
+                currentWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / 3) - 1) * 3 + i);
+            }
         }
+
+        Set<String> e = new HashSet<>();
+        boolean concession = false;
+
+        Double[] previousWeigths = new Double[this.issueWeights.size()];
+        for (int i = 0; i < this.issueWeights.size(); i++) {
+            previousWeigths[i] = this.issueWeights.get(this.domain.getIssues().toArray()[i].toString());
+        }
+        List<Bid> preferenceProfile = new ArrayList<>();
+        //System.out.println(this.receivedOffers.get(0).getIssueValues().toString());
+
+        //System.out.println(Arrays.toString(previousWindow[0].getIssues().toArray()));
+
+        /*for(int i = 0; i < previousWindow.length; i++){
+            for (int j = 0; j < 2; j++){
+                System.out.println(previousWindow[i].getValue(previousWindow[i].getIssues().toArray()[j].toString()));
+            }
+        }*/
+
+        return preferenceProfile;
+    }
+
+    private double Fr(Value value, Bid[] window) {
+        int valueCount = 0;
+        int deltaValue = 0;
+        for (int i = 0; i < kValue; i++) {
+            if (window[i].getIssueValues().containsValue(value)) {
+                valueCount++;
+            }
+        }
+        //System.out.println(lastReceivedBid.getValue("issue"));
+        return 1;
+    }
+
+    private void valueEstimation(Bid lastReceivedBid) {
+
+       /*Object [] issueValueList = new Object[3];
+        for(int i = 0; i < this.domain.getIssues().size(); i++){
+            for(int j = 0; j <this.domain.getValues((String)this.domain.getIssues().toArray()[i]).size().intValue(); j++)
+            issueValueList = new Object[]{this.domain.getIssues().toArray()[i].toString(), this.domain.getValues((String) this.domain.getIssues().toArray()[i]).get(j), 0.2};
+        }*/
+
+        //ArrayList<Object[]> maxValues = new ArrayList<>();
+
+        for(int i = 0; i < this.receivedOffers.size(); i++){
+            System.out.println(i);
+            System.out.println(this.receivedOffers.get(i));
+        }
+
+        for (int i = 0; i < this.issueValueList.size(); i++) {
+            System.out.println("Value " + this.issueValueList.get(i)[1] + " appears " +
+                    numeratorCalc((String) this.issueValueList.get(i)[0], (Value) this.issueValueList.get(i)[1]) + " times");
+            /*if(numeratorCalc((String) this.issueValueList.get(i)[0], (Value) this.issueValueList.get(i)[1]) >
+                    maxValue)
+                maxValues.add(new Object[]{this.issueValueList.get(i)[0] ,
+                        numeratorCalc((String) this.issueValueList.get(i)[0],
+                                (Value) this.issueValueList.get(i)[1])});*/
+                /*if(ifValueAppears((String)this.issueValueList.get(i)[0],
+                        (Value) this.issueValueList.get(i)[1],
+                        this.receivedOffers.get(j)) == 1) {
+                    System.out.println(this.receivedOffers.get(j));
+                    System.out.println("YES. Value " + this.issueValueList.get(i)[1] + " exist in bid " + j);
+                }*/
+        }
+
+
+        /*for(int i = 0; i < this.issueValueList.size(); i++){
+            if(ifValueAppears((String)this.issueValueList.get(i)[0],
+                    (Value) this.issueValueList.get(i)[1],
+                    lastReceivedBid) == 1) {
+                System.out.println("YES. Value " + this.issueValueList.get(i)[1] + " exist in bid");
+            }
+            System.out.println(ifValueAppears((String)listIterator.next()[0],
+                    this.domain.getValues((String)listIterator.next()[0]).get(0)
+                    (Value) listIterator.next()[1],
+                    this.receivedOffers.get(offerCount)));
+        }*/
+
+
+       /* int[] arr= new int[]{1,2,3,4,5};
+        System.out.println(Arrays.toString(arr));*/
+
+
+        /*for(int i = 0; i < this.receivedOffers.size(); i++){
+            System.out.println(this.receivedOffers.get(0));
+        }*/
+    }
+
+
+    private int ifValueAppears(String issue, Value value, Bid bid) {
+        return bid.getValue(issue).equals(value) ? 1 : 0;
+    }
+
+    private double numeratorCalc(String issue, Value value){
+        int count = 0;
+        double exp = 0.4;
+
+        for(int i = 0; i < this.receivedOffers.size(); i++){
+            if(ifValueAppears(issue, value, this.receivedOffers.get(i)) == 1)
+                count++;
+        }
+
+        return Math.pow((count + 1), exp);
     }
 }
