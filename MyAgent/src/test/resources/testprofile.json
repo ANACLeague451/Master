@@ -1,50 +1,92 @@
 {
 	"LinearAdditiveUtilitySpace": {
 		"issueUtilities": {
-			"issue2": {
-				"numberutils": {
-					"lowValue": 12,
-					"lowUtility": 0.3,
-					"highValue": 18,
-					"highUtility": 0.9
-				}
-			},
-			"issue1": {
+			"place": {
 				"discreteutils": {
 					"valueUtilities": {
-						"issue1value1": 0.2,
-						"issue1value2": 0.8
+						"Tokyo": 0.8,
+						"Osaka": 1.0,
+						"Negoya": 0.4,
+						"Hokkaido": 0.1
+					}
+				}
+			},
+			"budget": {
+				"numberutils": {
+					"lowValue": 900,
+					"lowUtility": 0.6,
+					"highValue": 1800,
+					"highUtility": 0.9 
+				}
+			},
+			"days": {
+				"discreteutils": {
+					"valueUtilities": {
+						"3": 0.25,
+						"4": 0.75,
+						"5": 1.0,
+						"6": 1.0
+					}
+				}
+			},
+			"purpose": {
+				"discreteutils": {
+					"valueUtilities": {
+						"Sightseeing": 0.2,
+						"Activity": 1.0,
+						"Shopping": 0.5
 					}
 				}
 			}
 		},
 		"issueWeights": {
-			"issue2": 0.4,
-			"issue1": 0.6
+			"place": 0.4,
+			"budget": 0.1,
+			"days": 0.2,
+			"purpose": 0.3
 		},
 		"domain": {
-			"name": "test",
+			"name": "japantrip",
 			"issuesValues": {
-				"issue2": {
-					"range": [
-						"12",
-						"18",
-						"1"
+				"place": {
+					"values": [
+						"Tokyo",
+						"Osaka",
+						"Negoya",
+						"Hokkaido"
 					]
 				},
-				"issue1": {
+				"budget": {
+					"range": [
+						900,
+						1800,
+						300 
+					]
+				},
+				"days": {
 					"values": [
-						"issue1value1",
-						"issue1value2"
+						"3",
+						"4",
+						"5",
+						"6"
+					]
+				},
+				"purpose": {
+					"values": [
+						"Sightseeing",
+						"Activity",
+						"Shopping"
 					]
 				}
 			}
 		},
-		"name": "testprofile",
+		"name": "japantrip2",
 		"reservationBid": {
 			"issuevalues": {
-				"issue1": "issue1value1",
-				"issue2": 12
+				"place": "Hokkaido",
+				"budget": 900,
+				"days": "3",
+				"purpose": "Sightseeing"
 			}
 		}
 	}

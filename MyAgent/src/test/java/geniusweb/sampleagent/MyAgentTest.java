@@ -84,7 +84,7 @@ public class MyAgentTest {
 		parameters = parameters.with("persistentstate", "6bb5f909-0079-43ac-a8ac-a31794391074");
 		parameters = parameters.with("negotiationdata", Arrays.asList(("12b5f909-0079-43ac-a8ac-a31794391012")));
 		settingsSAOPEmptyParameters = new Settings(PARTY1, new ProfileRef(new URI("file:" + PROFILE)), new ProtocolRef(SAOP), progress,
-				parametersEmpty);
+		parametersEmpty);
 		settingsSAOP = new Settings(PARTY1, new ProfileRef(new URI("file:" + PROFILE)), new ProtocolRef(SAOP), progress,
 				parameters);
 		settingsLearn = new Settings(PARTY1, new ProfileRef(new URI("file:" + PROFILE)), new ProtocolRef(LEARN),
