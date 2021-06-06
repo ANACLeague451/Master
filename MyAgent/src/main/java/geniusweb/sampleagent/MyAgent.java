@@ -66,6 +66,9 @@ public class MyAgent extends DefaultParty {
 
     private List<Bid> opponentBids = null;
 
+    private double utility = 0.0;
+    private ArrayList<Double> opponentUtilities = new ArrayList<Double>();
+
     private static final int kValue = 3;
 
     public MyAgent() {
@@ -183,12 +186,16 @@ public class MyAgent extends DefaultParty {
         getReporter().log(Level.INFO, "Time:" + this.time);
         getReporter().log(Level.INFO, "Acceptable Utility Value:" + this.acceptableUtilityValue);
 
+        opponentUtilities.clear();
+        for (Bid p : this.bidsUtilityMap.keySet())
+            opponentUtilities.add(random.nextDouble());
+
         // First round: lastReceivedBid == null
         if(lastReceivedBid != null) {
             this.receivedOffers.add(this.lastReceivedBid);
             getReporter().log(Level.INFO, "Received Bid:" + lastReceivedBid.toString());
         }
-
+        getReporter().log(Level.INFO, "OUR UTILITIES:" + this.bidsUtilityMap.values());
         Bid nextBid = createBid();
         updateAcceptable(nextBid);
 
@@ -212,6 +219,7 @@ public class MyAgent extends DefaultParty {
     }
 
     private Bid createBid() {
+
         Bid offeredBid = (Bid) this.bidsUtilityMap.keySet().toArray()[0];
         int totalRounds = 0;
         int currentRound = 0;
@@ -220,6 +228,7 @@ public class MyAgent extends DefaultParty {
             totalRounds = ((ProgressRounds) progress).getTotalRounds();
             currentRound = ((ProgressRounds) progress).getCurrentRound();
         }
+        System.out.println("BOI"+ currentRound);
 
         if(currentRound == 1 && lastReceivedBid == null)
             return offeredBid;
@@ -228,8 +237,14 @@ public class MyAgent extends DefaultParty {
             offeredBid = (Bid) this.bidsUtilityMap.keySet().toArray()[currentRound];
 
         else {
-            List<Bid> paretos = getParetoPoints((List<Bid>)this.bidsUtilityMap.keySet());
-            Bid nashPoint = calculateNashPoint((List<Bid>)this.bidsUtilityMap.keySet(), paretos);
+            getReporter().log(Level.INFO, "I AM INNNN" );
+            ArrayList<Bid> temp = new ArrayList<Bid>();
+            for(Object tempBid : this.bidsUtilityMap.keySet().toArray()){
+                temp.add((Bid)tempBid);
+            }
+            List<Bid> paretos = this.getParetoPoints(temp);
+            Bid nashPoint = calculateNashPoint(temp, paretos);
+            getReporter().log(Level.INFO, "Nash:" + nashPoint);
             offeredBid = nashPoint;
         }
         /*else {
@@ -272,14 +287,9 @@ public class MyAgent extends DefaultParty {
     }
 
     private Bid calculateNashPoint(List<Bid> points, List<Bid> paretos){
+
         Bid nashPoint = null;
         double maximumUtility = 0.0;
-        // List<Bid> paretos = getParetoPoints(this.) ..
-
-        // placeholder before opponent modeling
-        List<Double> opponentUtilities = null;
-        for (Bid p : points)
-            opponentUtilities.add(0.5);
 
         for (int i = 0; i < points.size(); ++i) {
             if (!paretos.contains(points.get(i)))
@@ -294,15 +304,10 @@ public class MyAgent extends DefaultParty {
     }
 
     private List<Bid> getParetoPoints(List<Bid> points){
-        List<Bid> paretoPoints = null;
-        List<Bid> dominatedList = null;
+        ArrayList<Bid> paretoPoints = new ArrayList<Bid>();
+        ArrayList<Bid> dominatedList = new ArrayList<Bid>();
         paretoPoints.add(points.get(0));
         boolean pareto = false;
-
-        // placeholder before opponent modeling
-        List<Double> opponentUtilities = null;
-        for (Bid p : points)
-            opponentUtilities.add(0.5);
 
         for(int i=1; i<points.size(); i++){
             double ourCurrentBidValue = ((BigDecimal)bidsUtilityMap.values().toArray()[i]).doubleValue();
@@ -327,7 +332,8 @@ public class MyAgent extends DefaultParty {
                     paretoPoints.remove(dominated); // remove previously added but dominated paretos
             }
             pareto = false;
-            dominatedList = null;
+            dominatedList.clear();
+
         }
 
         return paretoPoints;
