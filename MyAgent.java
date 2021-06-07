@@ -65,7 +65,7 @@ public class MyAgent extends DefaultParty {
     private ArrayList<Object[]> issueWeights = new ArrayList<>();
     private ArrayList<Object[]> issueValueList = new ArrayList<>();
 
-    private static final int kValue = 3;
+    private static final int kValue = 2;
 
     private boolean concession = false;
 
@@ -188,10 +188,9 @@ public class MyAgent extends DefaultParty {
         if (lastReceivedBid != null) {
             this.receivedOffers.add(this.lastReceivedBid);
             getReporter().log(Level.INFO, "Received Bid:" + lastReceivedBid.toString());
-            //if (currentRound > 3)
             valueEstimation();
-
-            //issueWeightEstimation();
+            if (currentRound > ((kValue * 2) - 1) && currentRound % kValue == 0)
+                issueWeightEstimation();
 
         }
 
@@ -340,121 +339,46 @@ public class MyAgent extends DefaultParty {
 
         return paretoPoints;
     }
-    //private void issueWeightEstimation() {
-        /*Bid[] previousWindow = new Bid[kValue];
+
+    private void issueWeightEstimation() {
+        Bid[] previousWindow = new Bid[kValue];
         Bid[] currentWindow = new Bid[kValue];
 
         if (this.receivedOffers.size() / kValue > 1 && this.receivedOffers.size() % kValue == 0) {
-            for (int i = 0; i < 3; i++) {
-                previousWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / 3) - 2) * 3 + i);
-                currentWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / 3) - 1) * 3 + i);
+            for (int i = 0; i < kValue; i++) {
+                previousWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / kValue) - 2) * kValue + i);
+                currentWindow[i] = this.receivedOffers.get(((this.receivedOffers.size() / kValue) - 1) * kValue + i);
             }
         }
-
-        /*System.out.println("PREV CURR");
-        for(int i = 0; i < kValue; i++){
-            System.out.println("PREV " + previousWindow[i]);
-            System.out.println("CURR " + currentWindow[i]);
-        }
-
-        this.concession = false;
-        Set<String> issuesSet = new HashSet<String>();
-        Set<String> leftoverIssuesSet = new HashSet<String>();
-
-        Set<String> allIssuesSet = new HashSet<String>();
-        for (int i = 0; i < this.domain.getIssues().size(); i++) {
-            allIssuesSet.add((String) this.domain.getIssues().toArray()[i]);
-        }
-
-        ArrayList<Object[]> currentIssueWeightList = new ArrayList<>(this.issueWeights);
-
         ArrayList<Object[]> prevFiValues = new ArrayList<>();
 
         Object[] prevFiValue;
         for (int i = 0; i < this.issueWeights.size(); i++) {
             for (int j = 0; j < this.domain.getValues((String) this.issueWeights.get(i)[0]).size().intValue(); j++) {
                 prevFiValue = new Object[]{this.domain.getIssues().toArray()[i],
+                        this.domain.getValues((String) this.issueWeights.get(i)[0]).get(j),
                         Fr(this.domain.getIssues().toArray()[i].toString(),
                                 this.domain.getValues((String) this.issueWeights.get(i)[0]).get(j),
                                 previousWindow)};
                 prevFiValues.add(prevFiValue);
             }
         }
-        /*System.out.println("PREVFI");
-        for(int i = 0; i < prevFiValues.size(); i++){
-            System.out.println(Arrays.toString(prevFiValues.get(i)));
-        }
-
         ArrayList<Object[]> currFiValues = new ArrayList<>();
 
         Object[] currFiValue;
         for (int i = 0; i < this.issueWeights.size(); i++) {
             for (int j = 0; j < this.domain.getValues((String) this.issueWeights.get(i)[0]).size().intValue(); j++) {
                 currFiValue = new Object[]{this.domain.getIssues().toArray()[i],
+                        this.domain.getValues((String) this.issueWeights.get(i)[0]).get(j),
                         Fr(this.domain.getIssues().toArray()[i].toString(),
                                 this.domain.getValues((String) this.issueWeights.get(i)[0]).get(j),
                                 currentWindow)};
                 currFiValues.add(currFiValue);
             }
-        }*/
-
-        /*System.out.println("CURRFI");
-        for(int i = 0; i < currFiValues.size(); i++){
-            System.out.println(Arrays.toString(currFiValues.get(i)));
         }
-
-        for(int i = 0; i < this.issueValueList.size(); i++){
-            System.out.println(Arrays.toString(this.issueValueList.get(i)));
-        }
-
-        double oldExpectedUtil = 0;
-        double newExpectedUtil = 0;
-
         ArrayList<Object[]> chivalues = chiSquaredTest(prevFiValues, currFiValues);
-        for (Object[] chivalue : chivalues) {
-            if ((double) chivalue[1] > 0.05) {
-                issuesSet.add((String) chivalue[0]);
-            } else {
-                allIssuesSet.removeAll(issuesSet);
-                leftoverIssuesSet = allIssuesSet;
-                for (int i = 0; i < kValue; i++) {
-                    for (int k = 0; k < leftoverIssuesSet.size(); k++) {
-                        for (int j = 0; j < this.issueValueList.size(); j++) {
-                            Value val = (Value) this.issueValueList.get(j)[1];
-                            if (val.equals(previousWindow[i].getValue((String)leftoverIssuesSet.toArray()[k]))){
-                                oldExpectedUtil += (double)this.issueValueList.get(j)[2] * (double)prevFiValues.get(i)[1];
-                            }
-                            if (val.equals(previousWindow[i].getValue((String)this.domain.getIssues().toArray()[k]))){
-                                newExpectedUtil += (double)this.issueValueList.get(j)[2] * (double)currFiValues.get(i)[1];
-                            }
-                        }
-                    }
-                }
-                /*System.out.println(oldExpectedUtil);
-                System.out.println(newExpectedUtil);
-                if (newExpectedUtil < oldExpectedUtil) {
-                    concession = true;
-                }
-            }
-        }
 
-        if((issuesSet.size() != this.domain.getIssues().size()) && concession){
-            for(int i = 0; i < this.issueWeights.size(); i++){
-                for(int j = 0; j < leftoverIssuesSet.size(); j++){
-                    /*System.out.println(this.issueWeights.get(i)[0]);
-                    System.out.println(leftoverIssuesSet.toArray()[j]);
-                    System.out.println("  h         ");
-                    if((this.issueWeights.get(i)[0]).equals(leftoverIssuesSet.toArray()[j])){
-                        double oldValue = (double)this.issueWeights.get(i)[1];
-                        this.issueWeights.remove(i);
-                        this.issueWeights.add(i, new Object[]{leftoverIssuesSet.toArray()[j], oldValue + 10});
-                        //System.out.println(this.issueWeights.get(i)[1]);
-                    }
-                }
-            }
-        }
-
-    }*/
+    }
 
     private double Fr(String issue, Value value, Bid[] window) {
         int valueCount = 0;
@@ -476,13 +400,13 @@ public class MyAgent extends DefaultParty {
         String[] issues = new String[this.domain.getIssues().size()];
         for (int i = 0; i < this.domain.getIssues().size(); i++) {
             issues[i] = this.domain.getIssues().toArray()[i].toString();
-            //System.out.println(issues[i]);
         }
 
         while (index < issues.length) {
             for (int i = 0; i < prevFi.size(); i++) {
                 if (issues[index].equals(prevFi.get(i)[0])) {
-                    chi += Math.pow(((double) prevFi.get(i)[1] - (double) currFi.get(i)[1]), 2) / (double) currFi.get(i)[1];
+                    chi += Math.pow(((double) prevFi.get(i)[2] - (double) currFi.get(i)[2]), 2)
+                            / (double) currFi.get(i)[2];
                 }
             }
             chiValue = new Object[]{issues[index], chi};
@@ -495,15 +419,8 @@ public class MyAgent extends DefaultParty {
     }
 
     private void valueEstimation() {
-
-        /*for(int i = 0; i < this.receivedOffers.size();i++){
-            System.out.println(this.receivedOffers.get(i));
-        }
-        System.out.println("OFFER");*/
-
         double max = 0;
         for (int i = 0; i < this.issueValueList.size(); i++) {
-            //System.out.println("OLD VALUE " + Arrays.toString(this.issueValueList.get(i)));
             double val = numeratorCalc((String) this.issueValueList.get(i)[0], (Value) this.issueValueList.get(i)[1]);  //Calculating numerator of division
             if (val > max) {
                 max = val;
@@ -511,14 +428,11 @@ public class MyAgent extends DefaultParty {
             this.issueValueList.set(i, new Object[]{this.issueValueList.get(i)[0],
                     this.issueValueList.get(i)[1],
                     val});
-            //System.out.println("NEW VALUE BEFORE DIVISION " + Arrays.toString(this.issueValueList.get(i)));
         }
-        //System.out.println("MAX " + max);
         for (int i = 0; i < this.issueValueList.size(); i++) {
             this.issueValueList.set(i, new Object[]{this.issueValueList.get(i)[0],
                     this.issueValueList.get(i)[1],
                     (double) this.issueValueList.get(i)[2] / max});  //Dividing with max value
-            //System.out.println("NEW VALUES" + Arrays.toString(this.issueValueList.get(i)));
         }
 
         int currentRound = 0;
@@ -526,14 +440,6 @@ public class MyAgent extends DefaultParty {
             currentRound = ((ProgressRounds) progress).getCurrentRound();
         }
         getReporter().log(Level.INFO, "------CURRENT ROUND------" + currentRound);
-
-        for (int i = 0; i < this.issueValueList.size(); i++) {
-            getReporter().log(Level.INFO, "Issue " + this.issueValueList.get(i)[0] +
-                    " Value " + this.issueValueList.get(i)[1]
-                    + " Weight " + this.issueValueList.get(i)[2]);
-        }
-
-
     }
 
 
@@ -541,8 +447,6 @@ public class MyAgent extends DefaultParty {
         if (bid != null) {
             return bid.getValue(issue).equals(value) ? 1 : 0;
         } else
-            //getReporter().log(Level.INFO, "HELLO I AM IN IFVALUEAPPEARS");
-            //getReporter().log(Level.INFO, "BIDBIDBIDBID" + bid.toString());
             return 0;
     }
 
